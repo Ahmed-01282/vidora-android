@@ -1,6 +1,5 @@
 plugins {
     id 'com.android.application'
-    id 'com.chaquo.python'
 }
 
 android {
@@ -32,11 +31,6 @@ android {
     }
 }
 
-chaquopy {
-    defaultConfig {
-        version '3.13'
-    }
-}
 
 dependencies {
     implementation 'dev.ffmpegkit-maintained:yt-dlp-android:2.0.2'
