@@ -87,12 +87,38 @@ public class MainActivity extends Activity {
                 "%(title).80s.%(ext)s"
         ).getAbsolutePath();
 
-        final YtDlpRequest request = new YtDlpRequest(url)
+        final boolean isFacebook = isFacebookUrl(url);
+        final String normalizedUrl = isFacebook ? url : normalizeNonFacebookUrl(url);
+
+        final YtDlpRequest request = new YtDlpRequest(normalizedUrl)
                 .setOutputTemplate(output)
-                .addOption("-f", "best[height<=720]/best")
                 .addOption("--no-playlist")
                 .addOption("--no-part")
                 .addOption("--no-keep-video");
+
+        if (isFacebook) {
+            // Facebook path is intentionally unchanged because it already works.
+            request.addOption("-f", "best[height<=720]/best");
+        } else {
+            // ayogen-style settings for YouTube, Instagram and TikTok.
+            request.addOption("-f", "bestvideo[ext=mp4][height<=720]+bestaudio[ext=m4a]/best[ext=mp4][height<=720]/best[height<=720]/best");
+            request.addOption("--merge-output-format", "mp4");
+            request.addOption("--retries", "3");
+            request.addOption("--fragment-retries", "3");
+            request.addOption("--extractor-retries", "3");
+            request.addOption("--socket-timeout", "30");
+            request.addOption("--user-agent", "Mozilla/5.0 (Linux; Android 13) AppleWebKit/537.36 Chrome/125.0 Mobile Safari/537.36");
+
+            String lowerUrl = normalizedUrl.toLowerCase();
+            if (lowerUrl.contains("instagram.com")) {
+                request.addOption("--referer", "https://www.instagram.com/");
+            } else if (lowerUrl.contains("tiktok.com")) {
+                request.addOption("--referer", "https://www.tiktok.com/");
+                request.addOption("--force-ipv4");
+            } else if (lowerUrl.contains("youtube.com") || lowerUrl.contains("youtu.be")) {
+                request.addOption("--referer", "https://www.youtube.com/");
+            }
+        }
 
         try {
             final Future<YtDlpResponse> downloadFuture = YtDlp.executeAsync(
@@ -152,6 +178,36 @@ public class MainActivity extends Activity {
             statusText.setText("تعذر بدء التنزيل: " + safeMessage(error));
             downloadButton.setEnabled(true);
         }
+    }
+
+    private boolean isFacebookUrl(String value) {
+        String lower = value.toLowerCase();
+        return lower.contains("facebook.com") || lower.contains("fb.watch");
+    }
+
+    private String normalizeNonFacebookUrl(String value) {
+        String trimmed = value.trim();
+        String lower = trimmed.toLowerCase();
+
+        if (lower.contains("instagram.com/share/reel/")) {
+            int start = lower.indexOf("instagram.com/share/reel/") + "instagram.com/share/reel/".length();
+            int end = trimmed.indexOf("?", start);
+            if (end < 0) end = trimmed.indexOf("/", start);
+            if (end < 0) end = trimmed.length();
+            String id = trimmed.substring(start, end);
+            if (!id.isEmpty()) return "https://www.instagram.com/reel/" + id + "/";
+        }
+
+        if (lower.contains("instagram.com/share/p/")) {
+            int start = lower.indexOf("instagram.com/share/p/") + "instagram.com/share/p/".length();
+            int end = trimmed.indexOf("?", start);
+            if (end < 0) end = trimmed.indexOf("/", start);
+            if (end < 0) end = trimmed.length();
+            String id = trimmed.substring(start, end);
+            if (!id.isEmpty()) return "https://www.instagram.com/p/" + id + "/";
+        }
+
+        return trimmed;
     }
 
     private File findNewestVideo(File directory) {
