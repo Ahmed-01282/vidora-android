@@ -100,9 +100,9 @@ public class MainActivity extends Activity {
             // Facebook path is intentionally unchanged because it already works.
             request.addOption("-f", "best[height<=720]/best");
         } else {
-            // ayogen-style settings for YouTube, Instagram and TikTok.
-            request.addOption("-f", "bestvideo[ext=mp4][height<=720]+bestaudio[ext=m4a]/best[ext=mp4][height<=720]/best[height<=720]/best");
-            request.addOption("--merge-output-format", "mp4");
+            // Non-Facebook path: prefer one combined MP4 format so this build
+            // does not fail when an FFmpeg binary is not bundled in the APK.
+            request.addOption("-f", "best[ext=mp4][height<=720]/best[height<=720]/best");
             request.addOption("--retries", "3");
             request.addOption("--fragment-retries", "3");
             request.addOption("--extractor-retries", "3");
@@ -117,6 +117,19 @@ public class MainActivity extends Activity {
                 request.addOption("--force-ipv4");
             } else if (lowerUrl.contains("youtube.com") || lowerUrl.contains("youtu.be")) {
                 request.addOption("--referer", "https://www.youtube.com/");
+            }
+
+            // Optional user-owned cookies file. Place it at:
+            // Android/data/com.vidora.app/files/Download/cookies.txt
+            File cookiesFile = new File(
+                    getExternalFilesDir(Environment.DIRECTORY_DOWNLOADS),
+                    "cookies.txt"
+            );
+            if (cookiesFile.isFile() && cookiesFile.length() > 0
+                    && (lowerUrl.contains("instagram.com")
+                    || lowerUrl.contains("youtube.com")
+                    || lowerUrl.contains("youtu.be"))) {
+                request.addOption("--cookies", cookiesFile.getAbsolutePath());
             }
         }
 
